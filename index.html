@@ -714,9 +714,14 @@ async function loadDeals() {
     }));
 
     // Separa nas três abas
-    allDeals.reajuste = enriched.filter(d => d._isReajuste);
+    // Reajuste SEM planilha → aba Reajuste (aguardando novo envio)
+    // Reajuste COM planilha → aba Executadas (com badge de reajuste no card)
+    allDeals.reajuste  = enriched.filter(d =>  d._isReajuste && !myPlanilhaFilled(d));
     allDeals.pendentes = enriched.filter(d => !d._isReajuste && !myPlanilhaFilled(d));
-    allDeals.executadas = enriched.filter(d => !d._isReajuste && myPlanilhaFilled(d));
+    allDeals.executadas = [
+      ...enriched.filter(d => !d._isReajuste &&  myPlanilhaFilled(d)),
+      ...enriched.filter(d =>  d._isReajuste &&  myPlanilhaFilled(d)),
+    ];
 
     // Ordena do mais antigo para o mais recente
     const sortAsc = (a, b) => {
@@ -878,6 +883,7 @@ function buildCard(deal) {
   const props = deal.properties || {};
   const isPendente = currentTab === 'pendentes';
   const isReajusteTab = currentTab === 'reajuste';
+  const isReajuste = deal._isReajuste;
   const isExecutada = currentTab === 'executadas';
   const temPlanilha = myPlanilhaFilled(deal);
 
@@ -888,9 +894,9 @@ function buildCard(deal) {
   // Badge de status
   let badgeHtml = '';
   if (isReajusteTab) {
-    badgeHtml = temPlanilha
-      ? `<span class="badge badge-reajuste">🔁 Reajuste Enviado</span>`
-      : `<span class="badge badge-reajuste">🔁 Reajuste Pendente</span>`;
+    badgeHtml = `<span class="badge badge-reajuste">🔁 Reajuste Pendente</span>`;
+  } else if (isExecutada && isReajuste) {
+    badgeHtml = `<span class="badge badge-reajuste">🔁 Reajuste Enviado</span>`;
   } else if (isPendente) {
     badgeHtml = `<span class="badge badge-pending">⏳ Pendente</span>`;
   } else {
@@ -961,7 +967,7 @@ function buildCard(deal) {
   }
 
   card.innerHTML = `
-    ${isReajusteTab ? `<div class="reajuste-banner">🔁 Esta demanda já passou por análise anteriormente — trata-se de um REAJUSTE.</div>` : ''}
+    ${(isReajusteTab || (isExecutada && isReajuste)) ? `<div class="reajuste-banner">🔁 Esta demanda já passou por análise anteriormente — trata-se de um REAJUSTE.</div>` : ''}
     <div class="card-header">
       <div class="card-header-left">
         <div class="deal-name">${props.dealname || `Negócio #${deal.id}`}</div>
