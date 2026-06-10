@@ -666,61 +666,83 @@ function switchTab(tab) {
 // ═══════════════════════════════════════
 // LOAD DEALS
 // ═══════════════════════════════════════
+const STAGES_POSTERIORES = ['1361336879', '1361336880', '1361336881', '1361336882'];
+
 async function loadDeals() {
   showLoading(true);
   try {
     const u = USERS[currentUser];
 
-    // Busca negócios na etapa "Preparação e custo"
-    const resp = await apiCall('/deals/search', 'POST', {
-      filterGroups: [
-        {
-          filters: [
-            { propertyName: 'pipeline', operator: 'EQ', value: PIPELINE_ID },
-            { propertyName: 'dealstage', operator: 'EQ', value: STAGE_PREPARACAO },
-          ]
-        }
-      ],
-      properties: [
-        'dealname', 'dealstage', 'hubspot_owner_id',
-        'tipo_de_op_compraproducao',
-        'planilha_de_custos', 'planilha_de_custos__compras',
-        'observacao_da_analise_de_custo', 'observacao_da_analise_de_custo_da_compra',
-        'termo_de_referencia', 'edital',
-        'associatedcompanyid',
-      ],
+    const PROPS = [
+      'dealname', 'dealstage', 'hubspot_owner_id',
+      'tipo_de_op_compraproducao',
+      'planilha_de_custos', 'planilha_de_custos__compras',
+      'observacao_da_analise_de_custo', 'observacao_da_analise_de_custo_da_compra',
+      'termo_de_referencia', 'edital',
+      'associatedcompanyid',
+    ];
+
+    // Busca deals em Preparação e custo (pendentes/reajuste)
+    const respPrep = await apiCall('/deals/search', 'POST', {
+      filterGroups: [{
+        filters: [
+          { propertyName: 'pipeline', operator: 'EQ', value: PIPELINE_ID },
+          { propertyName: 'dealstage', operator: 'EQ', value: STAGE_PREPARACAO },
+        ]
+      }],
+      properties: PROPS,
       limit: 100,
     });
 
-    const deals = resp.results || [];
+    // Busca deals em etapas posteriores (já executados)
+    const respPos = await apiCall('/deals/search', 'POST', {
+      filterGroups: STAGES_POSTERIORES.map(s => ({
+        filters: [
+          { propertyName: 'pipeline', operator: 'EQ', value: PIPELINE_ID },
+          { propertyName: 'dealstage', operator: 'EQ', value: s },
+        ]
+      })),
+      properties: PROPS,
+      limit: 100,
+    });
 
-    // Filtra pelo tipo do usuário
-    const myDeals = deals.filter(d => {
+    const dealsPrep = (respPrep.results || []).filter(d => {
       const tipo = d.properties?.tipo_de_op_compraproducao || '';
       return u.tipo_values.some(v => tipo === v);
     });
 
-    // Para cada deal, busca empresa associada e histórico de estágios
-    const enriched = await Promise.all(myDeals.map(async d => {
+    const dealsPos = (respPos.results || []).filter(d => {
+      const tipo = d.properties?.tipo_de_op_compraproducao || '';
+      // Só mostra etapas posteriores se o usuário preencheu a sua planilha
+      if (!u.tipo_values.some(v => tipo === v)) return false;
+      return myPlanilhaFilledForDeal(d, u);
+    });
+
+    // Enrich em paralelo
+    const enrichAll = async (deals) => Promise.all(deals.map(async d => {
       const [company, history] = await Promise.all([
         getCompanyName(d.id),
         getStageHistory(d.id),
       ]);
       d._company = company;
       d._isReajuste = isReajuste(history);
-      d._entradaDate = getEntradaPreparacao(history); // data mais recente que entrou na etapa
+      d._entradaDate = getEntradaPreparacao(history);
       d._ownerName = await getOwnerFromHistory(d.id, d.properties?.hubspot_owner_id);
+      d._avancou = STAGES_POSTERIORES.includes(d.properties?.dealstage);
       return d;
     }));
 
-    // Separa nas três abas
-    // Reajuste SEM planilha → aba Reajuste (aguardando novo envio)
-    // Reajuste COM planilha → aba Executadas (com badge de reajuste no card)
-    allDeals.reajuste  = enriched.filter(d =>  d._isReajuste && !myPlanilhaFilled(d));
-    allDeals.pendentes = enriched.filter(d => !d._isReajuste && !myPlanilhaFilled(d));
+    const [enrichedPrep, enrichedPos] = await Promise.all([
+      enrichAll(dealsPrep),
+      enrichAll(dealsPos),
+    ]);
+
+    // Separa abas
+    allDeals.reajuste  = enrichedPrep.filter(d =>  d._isReajuste && !myPlanilhaFilled(d));
+    allDeals.pendentes = enrichedPrep.filter(d => !d._isReajuste && !myPlanilhaFilled(d));
     allDeals.executadas = [
-      ...enriched.filter(d => !d._isReajuste &&  myPlanilhaFilled(d)),
-      ...enriched.filter(d =>  d._isReajuste &&  myPlanilhaFilled(d)),
+      ...enrichedPrep.filter(d => myPlanilhaFilled(d)), // em preparação, já respondeu
+      ...enrichedPos,                                    // avançou de etapa
     ];
 
     // Ordena do mais antigo para o mais recente
@@ -730,6 +752,7 @@ async function loadDeals() {
       return da - db;
     };
     allDeals.pendentes.sort(sortAsc);
+    allDeals.reajuste.sort(sortAsc);
     allDeals.executadas.sort(sortAsc);
 
     updateCounts();
@@ -742,8 +765,11 @@ async function loadDeals() {
 }
 
 function myPlanilhaFilled(deal) {
-  const prop = USERS[currentUser].planilha_prop;
-  const val = deal.properties?.[prop];
+  return myPlanilhaFilledForDeal(deal, USERS[currentUser]);
+}
+
+function myPlanilhaFilledForDeal(deal, u) {
+  const val = deal.properties?.[u.planilha_prop];
   return !!(val && val.trim && val.trim() !== '' && val !== 'null');
 }
 
@@ -897,6 +923,8 @@ function buildCard(deal) {
     badgeHtml = `<span class="badge badge-reajuste">🔁 Reajuste Pendente</span>`;
   } else if (isExecutada && isReajuste) {
     badgeHtml = `<span class="badge badge-reajuste">🔁 Reajuste Enviado</span>`;
+  } else if (isExecutada && deal._avancou) {
+    badgeHtml = `<span class="badge badge-done">✅ Concluído</span>`;
   } else if (isPendente) {
     badgeHtml = `<span class="badge badge-pending">⏳ Pendente</span>`;
   } else {
@@ -923,7 +951,7 @@ function buildCard(deal) {
 
   // Conteúdo do corpo — upload se não tem planilha, visualização se tem
   const showUpload = isPendente || (isReajusteTab && !temPlanilha);
-  const showDone = isExecutada || (isReajusteTab && temPlanilha);
+  const showDone = (isExecutada || (isReajusteTab && temPlanilha)) && !deal._avancou;
 
   const uploadHtml = showUpload ? `
     <div class="field-group" style="grid-column: 1 / -1;">
