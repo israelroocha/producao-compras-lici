@@ -734,7 +734,8 @@ async function loadDeals() {
 
 function myPlanilhaFilled(deal) {
   const prop = USERS[currentUser].planilha_prop;
-  return !!(deal.properties?.[prop]);
+  const val = deal.properties?.[prop];
+  return !!(val && val.trim && val.trim() !== '' && val !== 'null');
 }
 
 // ═══════════════════════════════════════
@@ -784,28 +785,18 @@ async function getCompanyName(dealId) {
   } catch { return '—'; }
 }
 
-// Busca quem moveu o deal para Preparação e custo via histórico de owner/atividades
+// Busca nome do owner do deal
 async function getOwnerFromHistory(dealId, fallbackOwnerId) {
-  try {
-    // Tenta buscar via histórico do hubspot_owner_id — quem era dono quando entrou na etapa
-    const resp = await apiCall(`/deals/${dealId}/history/hubspot_owner_id`, 'GET');
-    const values = resp.values || [];
-    if (values.length) {
-      // Pega o owner mais recente com id válido
-      const last = values.find(v => v.value && v.value !== '');
-      if (last?.value) {
-        const owner = await apiCall(`/owners/${last.value}`, 'GET');
-        const name = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
-        if (name) return name;
-      }
-    }
-  } catch {}
-  // Fallback: owner atual do deal
+  // Usa direto o owner_id do deal
   if (fallbackOwnerId) {
     try {
       const owner = await apiCall(`/owners/${fallbackOwnerId}`, 'GET');
-      return `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || '—';
-    } catch {}
+      const name = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
+      if (name) return name;
+      if (owner.email) return owner.email;
+    } catch (e) {
+      console.warn('Owner fetch failed:', e);
+    }
   }
   return '—';
 }
@@ -1065,15 +1056,19 @@ async function enviarDemanda(dealId) {
 
     // 3. Verifica se pode avançar de etapa
     msg.textContent = 'Verificando etapa...';
-    const deal = await apiCall(`/deals/${dealId}?properties=planilha_de_custos,planilha_de_custos__compras,tipo_de_op_compraproducao`, 'GET');
-    const tipo = deal.properties?.tipo_de_op_compraproducao || '';
-    const planProd = deal.properties?.planilha_de_custos;
-    const planComp = deal.properties?.planilha_de_custos__compras;
+    const dealAtual = await apiCall(`/deals/${dealId}`, 'GET', null, 'properties=planilha_de_custos,planilha_de_custos__compras,tipo_de_op_compraproducao');
+    const tipo = dealAtual.properties?.tipo_de_op_compraproducao || '';
+    const planProd = dealAtual.properties?.planilha_de_custos;
+    const planComp = dealAtual.properties?.planilha_de_custos__compras;
+
+    console.log('Verificando avanço:', { tipo, planProd, planComp });
 
     let podeAvancar = false;
-    if (tipo === 'Compra') podeAvancar = !!planComp;
-    else if (tipo === 'Produção') podeAvancar = !!planProd;
-    else if (tipo === 'Compra e Produção') podeAvancar = !!(planProd && planComp);
+    if (tipo === 'Compra') podeAvancar = !!(planComp && planComp !== '');
+    else if (tipo === 'Produção') podeAvancar = !!(planProd && planProd !== '');
+    else if (tipo === 'Compra e Produção') podeAvancar = !!(planProd && planProd !== '' && planComp && planComp !== '');
+
+    console.log('Pode avançar:', podeAvancar);
 
     if (podeAvancar) {
       await apiCall(`/deals/${dealId}`, 'PATCH', {
@@ -1120,13 +1115,14 @@ async function uploadFile(dealId, file) {
 // ═══════════════════════════════════════
 // API CALL (via Worker)
 // ═══════════════════════════════════════
-async function apiCall(path, method = 'GET', body = null) {
+async function apiCall(path, method = 'GET', body = null, queryString = '') {
+  const qs = queryString ? `?${queryString}` : '';
   const opts = {
     method,
     headers: { 'Content-Type': 'application/json' },
   };
   if (body) opts.body = JSON.stringify(body);
-  const resp = await fetch(`${WORKER_URL}/api${path}`, opts);
+  const resp = await fetch(`${WORKER_URL}/api${path}${qs}`, opts);
   if (!resp.ok) {
     const err = await resp.text();
     throw new Error(`API error ${resp.status}: ${err}`);
