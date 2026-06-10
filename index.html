@@ -625,6 +625,7 @@ function doLogin() {
 function doLogout() {
   localStorage.removeItem('licit_user');
   currentUser = null;
+  ownersCache = null;
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-pass').value = '';
@@ -788,7 +789,19 @@ async function getCompanyName(dealId) {
   } catch { return '—'; }
 }
 
-// Busca nome do owner que moveu para Preparação e custo via histórico de dealstage
+// Cache de owners para evitar múltiplas chamadas
+let ownersCache = null;
+
+async function getAllOwners() {
+  if (ownersCache) return ownersCache;
+  try {
+    const resp = await apiCall(`/owners`, 'GET', null, 'limit=100&archived=false');
+    ownersCache = resp.results || [];
+  } catch { ownersCache = []; }
+  return ownersCache;
+}
+
+// Busca nome de quem moveu para Preparação e custo
 async function getOwnerFromHistory(dealId, fallbackOwnerId) {
   try {
     const resp = await apiCall(`/deals/${dealId}/history/dealstage`, 'GET');
@@ -797,14 +810,9 @@ async function getOwnerFromHistory(dealId, fallbackOwnerId) {
       .filter(h => h.value === STAGE_PREPARACAO)
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
 
-    console.log('Histórico entrada Preparação:', entrada);
-
     if (entrada?.updatedByUserId) {
-      // Busca owner pelo userId via query param
-      const ownersResp = await apiCall(`/owners`, 'GET', null, `userId=${entrada.updatedByUserId}`);
-      console.log('Owners por userId:', ownersResp);
-      const results = ownersResp.results || (Array.isArray(ownersResp) ? ownersResp : []);
-      const owner = results[0];
+      const owners = await getAllOwners();
+      const owner = owners.find(o => o.userId === entrada.updatedByUserId);
       if (owner) {
         const name = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
         if (name) return name;
@@ -818,10 +826,12 @@ async function getOwnerFromHistory(dealId, fallbackOwnerId) {
   // Fallback: owner atual do deal
   if (fallbackOwnerId) {
     try {
-      const owner = await apiCall(`/owners/${fallbackOwnerId}`, 'GET');
-      const name = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
-      if (name) return name;
-      if (owner.email) return owner.email;
+      const owners = await getAllOwners();
+      const owner = owners.find(o => String(o.id) === String(fallbackOwnerId));
+      if (owner) {
+        const name = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
+        if (name) return name;
+      }
     } catch {}
   }
   return '—';
@@ -1124,8 +1134,8 @@ async function enviarDemanda(dealId) {
 
     showToast('Demanda enviada com sucesso!', 'success');
 
-    // Atualiza lista após 1s
-    setTimeout(() => loadDeals(), 1200);
+    // Aguarda 2.5s mostrando o status antes de recarregar
+    setTimeout(() => loadDeals(), 2500);
 
   } catch (e) {
     console.error(e);
