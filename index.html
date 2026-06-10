@@ -461,6 +461,22 @@
     cursor: pointer;
   }
 
+  .btn-substituir {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--red);
+    padding: 9px 20px;
+    border-radius: 7px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-substituir:hover { background: var(--red); color: white; }
+  .btn-substituir:disabled { opacity: 0.4; cursor: not-allowed; }
+
   /* toast */
   .toast {
     position: fixed;
@@ -553,7 +569,7 @@
 // ═══════════════════════════════════════
 // CONFIGURAÇÃO
 // ═══════════════════════════════════════
-const WORKER_URL = 'https://compras-producao-licitacao.israel-caetano-lima.workers.dev'; // ← trocar pela URL do Worker
+const WORKER_URL = 'https://SEU_WORKER.workers.dev'; // ← trocar pela URL do Worker
 
 const USERS = {
   compras: {
@@ -688,13 +704,24 @@ async function loadDeals() {
       ]);
       d._company = company;
       d._isReajuste = isReajuste(history);
-      d._ownerName = await getOwnerName(d.properties?.hubspot_owner_id);
+      d._entradaDate = getEntradaPreparacao(history); // data mais recente que entrou na etapa
+      d._ownerName = await getOwnerFromHistory(d.id, d.properties?.hubspot_owner_id);
       return d;
     }));
 
     // Separa pendentes e executadas
+    // Reajuste sem planilha = pendente; reajuste com planilha = executada
     allDeals.pendentes = enriched.filter(d => !myPlanilhaFilled(d));
     allDeals.executadas = enriched.filter(d => myPlanilhaFilled(d));
+
+    // Ordena do mais antigo para o mais recente
+    const sortAsc = (a, b) => {
+      const da = a._entradaDate ? new Date(a._entradaDate) : new Date(0);
+      const db = b._entradaDate ? new Date(b._entradaDate) : new Date(0);
+      return da - db;
+    };
+    allDeals.pendentes.sort(sortAsc);
+    allDeals.executadas.sort(sortAsc);
 
     updateCounts();
     renderCards();
@@ -711,7 +738,7 @@ function myPlanilhaFilled(deal) {
 }
 
 // ═══════════════════════════════════════
-// STAGE HISTORY → REAJUSTE
+// STAGE HISTORY → REAJUSTE + DATA ENTRADA
 // ═══════════════════════════════════════
 async function getStageHistory(dealId) {
   try {
@@ -721,9 +748,26 @@ async function getStageHistory(dealId) {
 }
 
 function isReajuste(history) {
-  // Conta quantas vezes passou por STAGE_PREPARACAO
   const count = history.filter(h => h.value === STAGE_PREPARACAO).length;
   return count > 1;
+}
+
+function getEntradaPreparacao(history) {
+  // Pega a entrada mais recente na etapa Preparação e custo
+  const entradas = history
+    .filter(h => h.value === STAGE_PREPARACAO && h.timestamp)
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  return entradas.length ? entradas[0].timestamp : null;
+}
+
+function formatDateTime(isoString) {
+  if (!isoString) return '—';
+  const d = new Date(isoString);
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  });
 }
 
 // ═══════════════════════════════════════
@@ -740,12 +784,30 @@ async function getCompanyName(dealId) {
   } catch { return '—'; }
 }
 
-async function getOwnerName(ownerId) {
-  if (!ownerId) return '—';
+// Busca quem moveu o deal para Preparação e custo via histórico de owner/atividades
+async function getOwnerFromHistory(dealId, fallbackOwnerId) {
   try {
-    const resp = await apiCall(`/owners/${ownerId}`, 'GET');
-    return `${resp.firstName || ''} ${resp.lastName || ''}`.trim() || '—';
-  } catch { return '—'; }
+    // Tenta buscar via histórico do hubspot_owner_id — quem era dono quando entrou na etapa
+    const resp = await apiCall(`/deals/${dealId}/history/hubspot_owner_id`, 'GET');
+    const values = resp.values || [];
+    if (values.length) {
+      // Pega o owner mais recente com id válido
+      const last = values.find(v => v.value && v.value !== '');
+      if (last?.value) {
+        const owner = await apiCall(`/owners/${last.value}`, 'GET');
+        const name = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
+        if (name) return name;
+      }
+    }
+  } catch {}
+  // Fallback: owner atual do deal
+  if (fallbackOwnerId) {
+    try {
+      const owner = await apiCall(`/owners/${fallbackOwnerId}`, 'GET');
+      return `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || '—';
+    } catch {}
+  }
+  return '—';
 }
 
 // ═══════════════════════════════════════
@@ -793,10 +855,12 @@ function buildCard(deal) {
   card.className = `deal-card${isPendente ? '' : ' card-done'}`;
   card.id = `card-${deal.id}`;
 
-  // Badge de status
+  // Badge de status — reajuste pode ser pendente ou executado
   let badgeHtml = '';
-  if (isReaj) {
+  if (isReaj && !isPendente) {
     badgeHtml = `<span class="badge badge-reajuste">🔁 Reajuste</span>`;
+  } else if (isReaj && isPendente) {
+    badgeHtml = `<span class="badge badge-reajuste">🔁 Reajuste Pendente</span>`;
   } else if (isPendente) {
     badgeHtml = `<span class="badge badge-pending">⏳ Pendente</span>`;
   } else {
@@ -858,6 +922,7 @@ function buildCard(deal) {
           <span>🏢 ${deal._company}</span>
           <span>👤 Enviado por: ${deal._ownerName}</span>
           <span>🏷 ${tipoOp}</span>
+          <span>📅 Recebido em: ${formatDateTime(deal._entradaDate)}</span>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
@@ -885,7 +950,13 @@ function buildCard(deal) {
       <button class="btn-enviar" id="btn-${deal.id}" onclick="enviarDemanda('${deal.id}')" disabled>
         Enviar ↗
       </button>
-    </div>` : ''}
+    </div>` : `
+    <div class="card-footer">
+      <span class="msg" id="msg-${deal.id}"></span>
+      <button class="btn-substituir" id="btn-${deal.id}" onclick="substituirPlanilha('${deal.id}')">
+        ↩ Substituir planilha
+      </button>
+    </div>`}
   `;
 
   return card;
@@ -914,8 +985,51 @@ function onFileSelect(dealId, input) {
 }
 
 // ═══════════════════════════════════════
-// ENVIAR DEMANDA
+// SUBSTITUIR PLANILHA
 // ═══════════════════════════════════════
+async function substituirPlanilha(dealId) {
+  const btn = document.getElementById(`btn-${dealId}`);
+  const msg = document.getElementById(`msg-${dealId}`);
+  const u = USERS[currentUser];
+
+  btn.disabled = true;
+  btn.textContent = 'Aguarde...';
+  msg.textContent = 'Limpando planilha anterior...';
+
+  try {
+    // Apaga a planilha e obs no HubSpot
+    await apiCall(`/deals/${dealId}`, 'PATCH', {
+      properties: {
+        [u.planilha_prop]: '',
+        [u.obs_prop]: '',
+      }
+    });
+
+    // Move da lista executadas → pendentes em memória
+    const idx = allDeals.executadas.findIndex(d => d.id === dealId);
+    if (idx !== -1) {
+      const deal = allDeals.executadas.splice(idx, 1)[0];
+      // Limpa as props localmente também
+      deal.properties[u.planilha_prop] = '';
+      deal.properties[u.obs_prop] = '';
+      allDeals.pendentes.push(deal);
+    }
+
+    updateCounts();
+    // Muda para aba pendentes e re-renderiza
+    switchTab('pendentes');
+    showToast('Planilha removida. Envie a nova versão.', 'success');
+
+  } catch (e) {
+    console.error(e);
+    btn.disabled = false;
+    btn.textContent = '↩ Substituir planilha';
+    msg.textContent = '';
+    showToast('Erro ao substituir. Tente novamente.', 'error');
+  }
+}
+
+
 async function enviarDemanda(dealId) {
   const btn = document.getElementById(`btn-${dealId}`);
   const msg = document.getElementById(`msg-${dealId}`);
