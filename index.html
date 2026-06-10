@@ -791,21 +791,24 @@ async function getCompanyName(dealId) {
 // Busca nome do owner que moveu para Preparação e custo via histórico de dealstage
 async function getOwnerFromHistory(dealId, fallbackOwnerId) {
   try {
-    // Busca histórico de dealstage para pegar quem fez a última mudança
     const resp = await apiCall(`/deals/${dealId}/history/dealstage`, 'GET');
     const values = resp.values || [];
-    // Pega a entrada mais recente em STAGE_PREPARACAO e busca o updatedByUserId
     const entrada = values
       .filter(h => h.value === STAGE_PREPARACAO)
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
 
+    console.log('Histórico entrada Preparação:', entrada);
+
     if (entrada?.updatedByUserId) {
-      // updatedByUserId é ID de usuário HubSpot, busca via owners por userId
-      const ownersResp = await apiCall(`/owners/search?userId=${entrada.updatedByUserId}`, 'GET');
-      const owner = ownersResp.results?.[0];
+      // Busca owner pelo userId via query param
+      const ownersResp = await apiCall(`/owners`, 'GET', null, `userId=${entrada.updatedByUserId}`);
+      console.log('Owners por userId:', ownersResp);
+      const results = ownersResp.results || (Array.isArray(ownersResp) ? ownersResp : []);
+      const owner = results[0];
       if (owner) {
         const name = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
         if (name) return name;
+        if (owner.email) return owner.email;
       }
     }
   } catch (e) {
