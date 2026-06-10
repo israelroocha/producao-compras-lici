@@ -1009,15 +1009,18 @@ async function substituirPlanilha(dealId) {
     const idx = allDeals.executadas.findIndex(d => d.id === dealId);
     if (idx !== -1) {
       const deal = allDeals.executadas.splice(idx, 1)[0];
-      // Limpa as props localmente também
       deal.properties[u.planilha_prop] = '';
       deal.properties[u.obs_prop] = '';
       allDeals.pendentes.push(deal);
     }
 
+    // Força aba pendentes ANTES de renderizar
+    currentTab = 'pendentes';
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-pendentes').classList.add('active');
+
     updateCounts();
-    // Muda para aba pendentes e re-renderiza
-    switchTab('pendentes');
+    renderCards();
     showToast('Planilha removida. Envie a nova versão.', 'success');
 
   } catch (e) {
