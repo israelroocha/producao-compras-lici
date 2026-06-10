@@ -785,18 +785,38 @@ async function getCompanyName(dealId) {
   } catch { return '—'; }
 }
 
-// Busca nome do owner do deal
+// Busca nome do owner que moveu para Preparação e custo via histórico de dealstage
 async function getOwnerFromHistory(dealId, fallbackOwnerId) {
-  // Usa direto o owner_id do deal
+  try {
+    // Busca histórico de dealstage para pegar quem fez a última mudança
+    const resp = await apiCall(`/deals/${dealId}/history/dealstage`, 'GET');
+    const values = resp.values || [];
+    // Pega a entrada mais recente em STAGE_PREPARACAO e busca o updatedByUserId
+    const entrada = values
+      .filter(h => h.value === STAGE_PREPARACAO)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+
+    if (entrada?.updatedByUserId) {
+      // updatedByUserId é ID de usuário HubSpot, busca via owners por userId
+      const ownersResp = await apiCall(`/owners/search?userId=${entrada.updatedByUserId}`, 'GET');
+      const owner = ownersResp.results?.[0];
+      if (owner) {
+        const name = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
+        if (name) return name;
+      }
+    }
+  } catch (e) {
+    console.warn('Owner history failed:', e);
+  }
+
+  // Fallback: owner atual do deal
   if (fallbackOwnerId) {
     try {
       const owner = await apiCall(`/owners/${fallbackOwnerId}`, 'GET');
       const name = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
       if (name) return name;
       if (owner.email) return owner.email;
-    } catch (e) {
-      console.warn('Owner fetch failed:', e);
-    }
+    } catch {}
   }
   return '—';
 }
@@ -1000,9 +1020,9 @@ async function substituirPlanilha(dealId) {
     const idx = allDeals.executadas.findIndex(d => d.id === dealId);
     if (idx !== -1) {
       const deal = allDeals.executadas.splice(idx, 1)[0];
-      deal.properties[u.planilha_prop] = '';
-      deal.properties[u.obs_prop] = '';
-      allDeals.pendentes.push(deal);
+      deal.properties[u.planilha_prop] = null;
+      deal.properties[u.obs_prop] = null;
+      allDeals.pendentes.unshift(deal);
     }
 
     // Força aba pendentes ANTES de renderizar
@@ -1055,25 +1075,31 @@ async function enviarDemanda(dealId) {
     await apiCall(`/deals/${dealId}`, 'PATCH', { properties: propsToUpdate });
 
     // 3. Verifica se pode avançar de etapa
+    // Busca deal atualizado do HubSpot para ter o estado real de ambas planilhas
     msg.textContent = 'Verificando etapa...';
+    await new Promise(r => setTimeout(r, 800)); // aguarda propagação HubSpot
+
     const dealAtual = await apiCall(`/deals/${dealId}`, 'GET', null, 'properties=planilha_de_custos,planilha_de_custos__compras,tipo_de_op_compraproducao');
     const tipo = dealAtual.properties?.tipo_de_op_compraproducao || '';
-    const planProd = dealAtual.properties?.planilha_de_custos;
-    const planComp = dealAtual.properties?.planilha_de_custos__compras;
 
-    console.log('Verificando avanço:', { tipo, planProd, planComp });
+    // Considera preenchido se tem qualquer valor não vazio
+    const temProd = !!(dealAtual.properties?.planilha_de_custos);
+    const temComp = !!(dealAtual.properties?.planilha_de_custos__compras);
+
+    console.log('Verificando avanço:', { tipo, temProd, temComp });
 
     let podeAvancar = false;
-    if (tipo === 'Compra') podeAvancar = !!(planComp && planComp !== '');
-    else if (tipo === 'Produção') podeAvancar = !!(planProd && planProd !== '');
-    else if (tipo === 'Compra e Produção') podeAvancar = !!(planProd && planProd !== '' && planComp && planComp !== '');
+    if (tipo === 'Compra') podeAvancar = temComp;
+    else if (tipo === 'Produção') podeAvancar = temProd;
+    else if (tipo === 'Compra e Produção') podeAvancar = temProd && temComp;
 
     console.log('Pode avançar:', podeAvancar);
 
     if (podeAvancar) {
-      await apiCall(`/deals/${dealId}`, 'PATCH', {
+      const patchResp = await apiCall(`/deals/${dealId}`, 'PATCH', {
         properties: { dealstage: STAGE_PRECIFICACAO }
       });
+      console.log('Avançou etapa:', patchResp);
       msg.textContent = '✅ Avançado para Precificação!';
     } else {
       msg.textContent = '✅ Enviado. Aguardando outro lado.';
