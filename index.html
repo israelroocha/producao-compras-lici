@@ -534,6 +534,9 @@
       <button class="tab-btn" onclick="switchTab('executadas')" id="tab-executadas">
         Executadas <span class="tab-count zero" id="count-executadas">0</span>
       </button>
+      <button class="tab-btn" onclick="switchTab('reajuste')" id="tab-reajuste">
+        Reajuste <span class="tab-count zero" id="count-reajuste">0</span>
+      </button>
     </div>
 
     <div id="tab-content">
@@ -597,7 +600,7 @@ const STAGE_PRECIFICACAO = '1361336879';
 // ═══════════════════════════════════════
 let currentUser = null;
 let currentTab = 'pendentes';
-let allDeals = { pendentes: [], executadas: [] };
+let allDeals = { pendentes: [], executadas: [], reajuste: [] };
 let fileMap = {}; // dealId → File
 let obsMap = {}; // dealId → string (em memória temporário)
 
@@ -709,10 +712,10 @@ async function loadDeals() {
       return d;
     }));
 
-    // Separa pendentes e executadas
-    // Reajuste sem planilha = pendente; reajuste com planilha = executada
-    allDeals.pendentes = enriched.filter(d => !myPlanilhaFilled(d));
-    allDeals.executadas = enriched.filter(d => myPlanilhaFilled(d));
+    // Separa nas três abas
+    allDeals.reajuste = enriched.filter(d => d._isReajuste);
+    allDeals.pendentes = enriched.filter(d => !d._isReajuste && !myPlanilhaFilled(d));
+    allDeals.executadas = enriched.filter(d => !d._isReajuste && myPlanilhaFilled(d));
 
     // Ordena do mais antigo para o mais recente
     const sortAsc = (a, b) => {
@@ -827,12 +830,13 @@ async function getOwnerFromHistory(dealId, fallbackOwnerId) {
 function updateCounts() {
   const p = allDeals.pendentes.length;
   const e = allDeals.executadas.length;
+  const r = allDeals.reajuste.length;
   const cp = document.getElementById('count-pendentes');
   const ce = document.getElementById('count-executadas');
-  cp.textContent = p;
-  cp.className = `tab-count${p === 0 ? ' zero' : ''}`;
-  ce.textContent = e;
-  ce.className = `tab-count${e === 0 ? ' zero' : ''}`;
+  const cr = document.getElementById('count-reajuste');
+  cp.textContent = p; cp.className = `tab-count${p === 0 ? ' zero' : ''}`;
+  ce.textContent = e; ce.className = `tab-count${e === 0 ? ' zero' : ''}`;
+  cr.textContent = r; cr.className = `tab-count${r === 0 ? ' zero' : ''}`;
 }
 
 function renderCards() {
@@ -860,28 +864,30 @@ function buildCard(deal) {
   const u = USERS[currentUser];
   const props = deal.properties || {};
   const isPendente = currentTab === 'pendentes';
-  const isReaj = deal._isReajuste;
+  const isReajusteTab = currentTab === 'reajuste';
+  const isExecutada = currentTab === 'executadas';
+  const temPlanilha = myPlanilhaFilled(deal);
 
   const card = document.createElement('div');
-  card.className = `deal-card${isPendente ? '' : ' card-done'}`;
+  card.className = `deal-card${(isExecutada || (isReajusteTab && temPlanilha)) ? ' card-done' : ''}`;
   card.id = `card-${deal.id}`;
 
-  // Badge de status — reajuste pode ser pendente ou executado
+  // Badge de status
   let badgeHtml = '';
-  if (isReaj && !isPendente) {
-    badgeHtml = `<span class="badge badge-reajuste">🔁 Reajuste</span>`;
-  } else if (isReaj && isPendente) {
-    badgeHtml = `<span class="badge badge-reajuste">🔁 Reajuste Pendente</span>`;
+  if (isReajusteTab) {
+    badgeHtml = temPlanilha
+      ? `<span class="badge badge-reajuste">🔁 Reajuste Enviado</span>`
+      : `<span class="badge badge-reajuste">🔁 Reajuste Pendente</span>`;
   } else if (isPendente) {
     badgeHtml = `<span class="badge badge-pending">⏳ Pendente</span>`;
   } else {
     badgeHtml = `<span class="badge badge-done">✅ Enviado</span>`;
   }
 
-  // Verificação se é "Compra e Produção" e o outro lado já respondeu
+  // Badge aguardando outro lado (Compra e Produção)
   const tipoOp = props.tipo_de_op_compraproducao || '';
   let waitingBadge = '';
-  if (tipoOp === 'Compra e Produção' && !isPendente) {
+  if (tipoOp === 'Compra e Produção' && (isExecutada || (isReajusteTab && temPlanilha))) {
     const outroFilled = currentUser === 'compras'
       ? !!props.planilha_de_custos
       : !!props.planilha_de_custos__compras;
@@ -893,13 +899,14 @@ function buildCard(deal) {
   // Arquivos de referência
   const termoUrl = props.termo_de_referencia || '';
   const editalUrl = props.edital || '';
-
-  // Planilha já enviada
   const planilhaAtual = props[u.planilha_prop] || '';
   const obsAtual = props[u.obs_prop] || '';
 
-  // Upload area
-  const uploadHtml = isPendente ? `
+  // Conteúdo do corpo — upload se não tem planilha, visualização se tem
+  const showUpload = isPendente || (isReajusteTab && !temPlanilha);
+  const showDone = isExecutada || (isReajusteTab && temPlanilha);
+
+  const uploadHtml = showUpload ? `
     <div class="field-group" style="grid-column: 1 / -1;">
       <label>📎 ${u.label === 'Compras' ? 'Planilha de Custos (Compras)' : 'Planilha de Custos (Produção)'}</label>
       <div class="file-upload-area" id="upload-${deal.id}">
@@ -924,8 +931,24 @@ function buildCard(deal) {
     </div>
   `;
 
+  // Footer
+  let footerHtml = '';
+  if (showUpload) {
+    footerHtml = `
+    <div class="card-footer">
+      <span class="msg" id="msg-${deal.id}"></span>
+      <button class="btn-enviar" id="btn-${deal.id}" onclick="enviarDemanda('${deal.id}')" disabled>Enviar ↗</button>
+    </div>`;
+  } else if (showDone) {
+    footerHtml = `
+    <div class="card-footer">
+      <span class="msg" id="msg-${deal.id}"></span>
+      <button class="btn-substituir" id="btn-${deal.id}" onclick="substituirPlanilha('${deal.id}')">↩ Substituir planilha</button>
+    </div>`;
+  }
+
   card.innerHTML = `
-    ${isReaj ? `<div class="reajuste-banner">🔁 Esta demanda já passou por análise anteriormente — trata-se de um REAJUSTE.</div>` : ''}
+    ${isReajusteTab ? `<div class="reajuste-banner">🔁 Esta demanda já passou por análise anteriormente — trata-se de um REAJUSTE.</div>` : ''}
     <div class="card-header">
       <div class="card-header-left">
         <div class="deal-name">${props.dealname || `Negócio #${deal.id}`}</div>
@@ -955,19 +978,7 @@ function buildCard(deal) {
       </div>
       ${uploadHtml}
     </div>
-    ${isPendente ? `
-    <div class="card-footer">
-      <span class="msg" id="msg-${deal.id}"></span>
-      <button class="btn-enviar" id="btn-${deal.id}" onclick="enviarDemanda('${deal.id}')" disabled>
-        Enviar ↗
-      </button>
-    </div>` : `
-    <div class="card-footer">
-      <span class="msg" id="msg-${deal.id}"></span>
-      <button class="btn-substituir" id="btn-${deal.id}" onclick="substituirPlanilha('${deal.id}')">
-        ↩ Substituir planilha
-      </button>
-    </div>`}
+    ${footerHtml}
   `;
 
   return card;
@@ -1016,19 +1027,22 @@ async function substituirPlanilha(dealId) {
       }
     });
 
-    // Move da lista executadas → pendentes em memória
-    const idx = allDeals.executadas.findIndex(d => d.id === dealId);
-    if (idx !== -1) {
-      const deal = allDeals.executadas.splice(idx, 1)[0];
+    // Move em memória conforme a aba de origem
+    const fromExecutadas = allDeals.executadas.findIndex(d => d.id === dealId);
+    const fromReajuste = allDeals.reajuste.findIndex(d => d.id === dealId);
+
+    if (fromExecutadas !== -1) {
+      const deal = allDeals.executadas.splice(fromExecutadas, 1)[0];
       deal.properties[u.planilha_prop] = null;
       deal.properties[u.obs_prop] = null;
       allDeals.pendentes.unshift(deal);
+      currentTab = 'pendentes';
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-pendentes').classList.add('active');
+    } else if (fromReajuste !== -1) {
+      allDeals.reajuste[fromReajuste].properties[u.planilha_prop] = null;
+      allDeals.reajuste[fromReajuste].properties[u.obs_prop] = null;
     }
-
-    // Força aba pendentes ANTES de renderizar
-    currentTab = 'pendentes';
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-pendentes').classList.add('active');
 
     updateCounts();
     renderCards();
