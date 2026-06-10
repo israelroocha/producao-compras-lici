@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal de Demandas — Licitação</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #9E0B0F;
+    --red-dark: #7a0810;
+    --black: #1a1a1a;
+    --white: #ffffff;
+    --gray-100: #f5f5f5;
+    --gray-200: #e8e8e8;
+    --gray-400: #999;
+    --gray-600: #555;
+    --green: #1a7a3c;
+    --green-bg: #e8f5ed;
+    --orange: #c76b00;
+    --orange-bg: #fff3e0;
+    --blue: #1565c0;
+    --blue-bg: #e3f0ff;
+    --purple: #6b21a8;
+    --purple-bg: #f3e8ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: var(--gray-100);
+    color: var(--black);
+    min-height: 100vh;
+  }
+
+  /* ── LOGIN ── */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--black);
+  }
+  .login-box {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  .login-logo {
+    font-family: 'Oswald', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--red);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .login-subtitle {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-bottom: 32px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .login-box input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .login-box input:focus { border-color: var(--red); }
+  .login-box button {
+    width: 100%;
+    padding: 13px;
+    background: var(--red);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 15px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 4px;
+  }
+  .login-box button:hover { background: var(--red-dark); }
+  .login-error {
+    color: var(--red);
+    font-size: 13px;
+    margin-top: 10px;
+    display: none;
+  }
+
+  /* ── HEADER ── */
+  #app { display: none; }
+  header {
+    background: var(--black);
+    padding: 0 32px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-logo {
+    font-family: 'Oswald', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--red);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .header-logo span { color: var(--white); font-weight: 400; font-size: 13px; margin-left: 12px; letter-spacing: 0; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .user-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--gray-400);
+  }
+  .user-badge strong { color: var(--white); }
+  .btn-profile {
+    background: transparent;
+    border: 1px solid #444;
+    color: #ccc;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-profile:hover { border-color: #888; color: white; }
+  .btn-logout {
+    background: transparent;
+    border: none;
+    color: var(--gray-400);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+  }
+  .btn-logout:hover { color: white; }
+
+  /* ── MAIN ── */
+  main { padding: 32px; max-width: 1100px; margin: 0 auto; }
+
+  .page-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--black);
+    margin-bottom: 4px;
+  }
+  .page-desc { font-size: 13px; color: var(--gray-400); margin-bottom: 28px; }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--gray-200);
+  }
+  .tab-btn {
+    background: transparent;
+    border: none;
+    padding: 10px 20px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-400);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tab-btn.active { color: var(--red); border-bottom-color: var(--red); }
+  .tab-btn:hover:not(.active) { color: var(--black); }
+  .tab-count {
+    background: var(--red);
+    color: white;
+    border-radius: 99px;
+    font-size: 11px;
+    padding: 1px 7px;
+    font-weight: 600;
+  }
+  .tab-count.zero { background: var(--gray-200); color: var(--gray-400); }
+
+  /* ── LOADING / EMPTY ── */
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--gray-400);
+    font-size: 14px;
+  }
+  .loading-spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--gray-200);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 60px 20px; color: var(--gray-400); font-size: 14px; }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; }
+
+  /* ── CARDS ── */
+  .cards-grid { display: flex; flex-direction: column; gap: 16px; }
+
+  .deal-card {
+    background: var(--white);
+    border-radius: 10px;
+    border: 1px solid var(--gray-200);
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+  }
+  .deal-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+
+  .card-header {
+    padding: 18px 20px 14px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .card-header-left { flex: 1; min-width: 0; }
+  .deal-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--black);
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--gray-600);
+  }
+  .card-meta span { display: flex; align-items: center; gap: 4px; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-pending { background: var(--orange-bg); color: var(--orange); }
+  .badge-done { background: var(--green-bg); color: var(--green); }
+  .badge-reajuste { background: var(--purple-bg); color: var(--purple); border: 1px solid #c084fc; }
+  .badge-waiting { background: var(--blue-bg); color: var(--blue); }
+
+  .card-body {
+    border-top: 1px solid var(--gray-200);
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .field-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray-400);
+    margin-bottom: 6px;
+  }
+
+  .file-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--blue);
+    text-decoration: none;
+    padding: 6px 10px;
+    background: var(--blue-bg);
+    border-radius: 6px;
+    transition: opacity 0.2s;
+  }
+  .file-link:hover { opacity: 0.8; }
+  .file-link.no-file { color: var(--gray-400); background: var(--gray-100); cursor: default; }
+
+  .file-upload-area {
+    border: 2px dashed var(--gray-200);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--gray-400);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .file-upload-area:hover { border-color: var(--red); color: var(--red); }
+  .file-upload-area input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+  .file-upload-area.has-file { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+
+  textarea.obs-field {
+    width: 100%;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    resize: vertical;
+    min-height: 72px;
+    outline: none;
+    transition: border-color 0.2s;
+    color: var(--black);
+  }
+  textarea.obs-field:focus { border-color: var(--red); }
+
+  .card-footer {
+    padding: 12px 20px;
+    background: var(--gray-100);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    align-items: center;
+  }
+  .card-footer .msg { font-size: 12px; color: var(--gray-400); flex: 1; }
+
+  .btn-enviar {
+    background: var(--red);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 7px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-enviar:hover:not(:disabled) { background: var(--red-dark); }
+  .btn-enviar:disabled { background: var(--gray-200); color: var(--gray-400); cursor: not-allowed; }
+
+  /* done card */
+  .card-done .card-header { opacity: 0.7; }
+  .card-done .card-body { opacity: 0.7; }
+
+  /* reajuste banner */
+  .reajuste-banner {
+    background: var(--purple-bg);
+    border-bottom: 1px solid #c084fc;
+    padding: 8px 20px;
+    font-size: 12px;
+    color: var(--purple);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── MODAL PERFIL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 440px;
+    padding: 32px;
+    margin: 16px;
+  }
+  .modal h2 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .modal label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray-400);
+    margin-bottom: 6px;
+  }
+  .modal input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    margin-bottom: 16px;
+    outline: none;
+  }
+  .modal input:focus { border-color: var(--red); }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+  .btn-cancel {
+    background: transparent;
+    border: 1px solid var(--gray-200);
+    padding: 9px 20px;
+    border-radius: 7px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn-save {
+    background: var(--red);
+    color: white;
+    border: none;
+    padding: 9px 20px;
+    border-radius: 7px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  /* toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--black);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 300;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.3s;
+    max-width: 320px;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { background: var(--green); }
+  .toast.error { background: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">CITEROL</div>
+    <div class="login-subtitle">Portal de Demandas — Licitação</div>
+    <input type="text" id="login-user" placeholder="Usuário" autocomplete="username">
+    <input type="password" id="login-pass" placeholder="Senha" autocomplete="current-password">
+    <button onclick="doLogin()">Entrar</button>
+    <div class="login-error" id="login-error">Usuário ou senha incorretos.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="header-logo">CITEROL <span>Portal de Demandas</span></div>
+    <div class="header-right">
+      <div class="user-badge">Olá, <strong id="header-user"></strong></div>
+      <button class="btn-profile" onclick="openProfile()">⚙ Perfil</button>
+      <button class="btn-logout" onclick="doLogout()">Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="page-title" id="page-title"></div>
+    <div class="page-desc" id="page-desc"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('pendentes')" id="tab-pendentes">
+        Pendentes <span class="tab-count zero" id="count-pendentes">0</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('executadas')" id="tab-executadas">
+        Executadas <span class="tab-count zero" id="count-executadas">0</span>
+      </button>
+    </div>
+
+    <div id="tab-content">
+      <div class="loading" id="loading-state">
+        <div class="loading-spinner"></div>
+        Carregando demandas...
+      </div>
+      <div class="cards-grid" id="cards-container" style="display:none"></div>
+      <div class="empty" id="empty-state" style="display:none">
+        <div class="empty-icon">📋</div>
+        Nenhuma demanda encontrada.
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL PERFIL -->
+<div class="modal-overlay" id="modal-profile">
+  <div class="modal">
+    <h2>Configurações do Perfil</h2>
+    <label>E-mail para notificações</label>
+    <input type="email" id="profile-email" placeholder="seu@email.com">
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeProfile()">Cancelar</button>
+      <button class="btn-save" onclick="saveProfile()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// CONFIGURAÇÃO
+// ═══════════════════════════════════════
+const WORKER_URL = 'https://compras-producao-licitacao.israel-caetano-lima.workers.dev'; // ← trocar pela URL do Worker
+
+const USERS = {
+  compras: {
+    password: 'Citerol@compras@1966',
+    label: 'Compras',
+    tipo_values: ['Compra', 'Compra e Produção'],
+    planilha_prop: 'planilha_de_custos__compras',
+    obs_prop: 'observacao_da_analise_de_custo_da_compra',
+  },
+  producao: {
+    password: 'Citerol@prod@1966',
+    label: 'Produção',
+    tipo_values: ['Produção', 'Compra e Produção'],
+    planilha_prop: 'planilha_de_custos',
+    obs_prop: 'observacao_da_analise_de_custo',
+  }
+};
+
+const PIPELINE_ID = '900569089';
+const STAGE_PREPARACAO = '1361336878';
+const STAGE_PRECIFICACAO = '1361336879';
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let currentUser = null;
+let currentTab = 'pendentes';
+let allDeals = { pendentes: [], executadas: [] };
+let fileMap = {}; // dealId → File
+let obsMap = {}; // dealId → string (em memória temporário)
+
+// ═══════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════
+function doLogin() {
+  const user = document.getElementById('login-user').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-error');
+
+  if (USERS[user] && USERS[user].password === pass) {
+    currentUser = user;
+    localStorage.setItem('licit_user', user);
+    err.style.display = 'none';
+    showApp();
+  } else {
+    err.style.display = 'block';
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('licit_user');
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pass').value = '';
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const u = USERS[currentUser];
+  document.getElementById('header-user').textContent = u.label;
+  document.getElementById('page-title').textContent = `Demandas — ${u.label}`;
+  document.getElementById('page-desc').textContent = `Negócios em preparação de custo atribuídos à equipe de ${u.label.toLowerCase()}.`;
+  loadDeals();
+}
+
+// auto-login
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('licit_user');
+  if (saved && USERS[saved]) {
+    currentUser = saved;
+    showApp();
+  }
+  document.getElementById('login-pass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+
+// ═══════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  renderCards();
+}
+
+// ═══════════════════════════════════════
+// LOAD DEALS
+// ═══════════════════════════════════════
+async function loadDeals() {
+  showLoading(true);
+  try {
+    const u = USERS[currentUser];
+
+    // Busca negócios na etapa "Preparação e custo"
+    const resp = await apiCall('/deals/search', 'POST', {
+      filterGroups: [
+        {
+          filters: [
+            { propertyName: 'pipeline', operator: 'EQ', value: PIPELINE_ID },
+            { propertyName: 'dealstage', operator: 'EQ', value: STAGE_PREPARACAO },
+          ]
+        }
+      ],
+      properties: [
+        'dealname', 'dealstage', 'hubspot_owner_id',
+        'tipo_de_op_compraproducao',
+        'planilha_de_custos', 'planilha_de_custos__compras',
+        'observacao_da_analise_de_custo', 'observacao_da_analise_de_custo_da_compra',
+        'termo_de_referencia', 'edital',
+        'associatedcompanyid',
+      ],
+      limit: 100,
+    });
+
+    const deals = resp.results || [];
+
+    // Filtra pelo tipo do usuário
+    const myDeals = deals.filter(d => {
+      const tipo = d.properties?.tipo_de_op_compraproducao || '';
+      return u.tipo_values.some(v => tipo === v);
+    });
+
+    // Para cada deal, busca empresa associada e histórico de estágios
+    const enriched = await Promise.all(myDeals.map(async d => {
+      const [company, history] = await Promise.all([
+        getCompanyName(d.id),
+        getStageHistory(d.id),
+      ]);
+      d._company = company;
+      d._isReajuste = isReajuste(history);
+      d._ownerName = await getOwnerName(d.properties?.hubspot_owner_id);
+      return d;
+    }));
+
+    // Separa pendentes e executadas
+    allDeals.pendentes = enriched.filter(d => !myPlanilhaFilled(d));
+    allDeals.executadas = enriched.filter(d => myPlanilhaFilled(d));
+
+    updateCounts();
+    renderCards();
+  } catch (e) {
+    console.error(e);
+    showToast('Erro ao carregar demandas. Verifique o Worker.', 'error');
+    showLoading(false);
+  }
+}
+
+function myPlanilhaFilled(deal) {
+  const prop = USERS[currentUser].planilha_prop;
+  return !!(deal.properties?.[prop]);
+}
+
+// ═══════════════════════════════════════
+// STAGE HISTORY → REAJUSTE
+// ═══════════════════════════════════════
+async function getStageHistory(dealId) {
+  try {
+    const resp = await apiCall(`/deals/${dealId}/history/dealstage`, 'GET');
+    return resp.values || [];
+  } catch { return []; }
+}
+
+function isReajuste(history) {
+  // Conta quantas vezes passou por STAGE_PREPARACAO
+  const count = history.filter(h => h.value === STAGE_PREPARACAO).length;
+  return count > 1;
+}
+
+// ═══════════════════════════════════════
+// EMPRESA E OWNER
+// ═══════════════════════════════════════
+async function getCompanyName(dealId) {
+  try {
+    const resp = await apiCall(`/deals/${dealId}/associations/companies`, 'GET');
+    const results = resp.results || [];
+    if (!results.length) return '—';
+    const companyId = results[0].id;
+    const company = await apiCall(`/companies/${companyId}?properties=name`, 'GET');
+    return company.properties?.name || '—';
+  } catch { return '—'; }
+}
+
+async function getOwnerName(ownerId) {
+  if (!ownerId) return '—';
+  try {
+    const resp = await apiCall(`/owners/${ownerId}`, 'GET');
+    return `${resp.firstName || ''} ${resp.lastName || ''}`.trim() || '—';
+  } catch { return '—'; }
+}
+
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+function updateCounts() {
+  const p = allDeals.pendentes.length;
+  const e = allDeals.executadas.length;
+  const cp = document.getElementById('count-pendentes');
+  const ce = document.getElementById('count-executadas');
+  cp.textContent = p;
+  cp.className = `tab-count${p === 0 ? ' zero' : ''}`;
+  ce.textContent = e;
+  ce.className = `tab-count${e === 0 ? ' zero' : ''}`;
+}
+
+function renderCards() {
+  showLoading(false);
+  const container = document.getElementById('cards-container');
+  const empty = document.getElementById('empty-state');
+  const deals = allDeals[currentTab];
+
+  if (!deals.length) {
+    container.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  container.style.display = 'flex';
+  container.innerHTML = '';
+
+  deals.forEach(deal => {
+    container.appendChild(buildCard(deal));
+  });
+}
+
+function buildCard(deal) {
+  const u = USERS[currentUser];
+  const props = deal.properties || {};
+  const isPendente = currentTab === 'pendentes';
+  const isReaj = deal._isReajuste;
+
+  const card = document.createElement('div');
+  card.className = `deal-card${isPendente ? '' : ' card-done'}`;
+  card.id = `card-${deal.id}`;
+
+  // Badge de status
+  let badgeHtml = '';
+  if (isReaj) {
+    badgeHtml = `<span class="badge badge-reajuste">🔁 Reajuste</span>`;
+  } else if (isPendente) {
+    badgeHtml = `<span class="badge badge-pending">⏳ Pendente</span>`;
+  } else {
+    badgeHtml = `<span class="badge badge-done">✅ Enviado</span>`;
+  }
+
+  // Verificação se é "Compra e Produção" e o outro lado já respondeu
+  const tipoOp = props.tipo_de_op_compraproducao || '';
+  let waitingBadge = '';
+  if (tipoOp === 'Compra e Produção' && !isPendente) {
+    const outroFilled = currentUser === 'compras'
+      ? !!props.planilha_de_custos
+      : !!props.planilha_de_custos__compras;
+    if (!outroFilled) {
+      waitingBadge = `<span class="badge badge-waiting" style="margin-left:6px">⏳ Aguardando outro lado</span>`;
+    }
+  }
+
+  // Arquivos de referência
+  const termoUrl = props.termo_de_referencia || '';
+  const editalUrl = props.edital || '';
+
+  // Planilha já enviada
+  const planilhaAtual = props[u.planilha_prop] || '';
+  const obsAtual = props[u.obs_prop] || '';
+
+  // Upload area
+  const uploadHtml = isPendente ? `
+    <div class="field-group" style="grid-column: 1 / -1;">
+      <label>📎 ${u.label === 'Compras' ? 'Planilha de Custos (Compras)' : 'Planilha de Custos (Produção)'}</label>
+      <div class="file-upload-area" id="upload-${deal.id}">
+        <input type="file" accept=".xlsx,.xls,.pdf,.doc,.docx" onchange="onFileSelect('${deal.id}', this)">
+        <span id="upload-label-${deal.id}">Clique para selecionar o arquivo</span>
+      </div>
+    </div>
+    <div class="field-group" style="grid-column: 1 / -1;">
+      <label>💬 Observações</label>
+      <textarea class="obs-field" id="obs-${deal.id}" placeholder="Adicione observações (opcional)...">${obsMap[deal.id] || ''}</textarea>
+    </div>
+  ` : `
+    <div class="field-group">
+      <label>📎 Planilha enviada</label>
+      ${planilhaAtual
+        ? `<a href="${planilhaAtual}" target="_blank" class="file-link">📄 Ver arquivo</a>`
+        : `<span class="file-link no-file">Nenhum arquivo</span>`}
+    </div>
+    <div class="field-group">
+      <label>💬 Observações enviadas</label>
+      <div style="font-size:13px;color:var(--gray-600);padding:8px 0;">${obsAtual || '<em style="color:var(--gray-400)">Sem observações</em>'}</div>
+    </div>
+  `;
+
+  card.innerHTML = `
+    ${isReaj ? `<div class="reajuste-banner">🔁 Esta demanda já passou por análise anteriormente — trata-se de um REAJUSTE.</div>` : ''}
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="deal-name">${props.dealname || `Negócio #${deal.id}`}</div>
+        <div class="card-meta">
+          <span>🏢 ${deal._company}</span>
+          <span>👤 Enviado por: ${deal._ownerName}</span>
+          <span>🏷 ${tipoOp}</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        ${badgeHtml}${waitingBadge}
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="field-group">
+        <label>📄 Termo de Referência</label>
+        ${termoUrl
+          ? `<a href="${termoUrl}" target="_blank" class="file-link">📥 Baixar</a>`
+          : `<span class="file-link no-file">Não anexado</span>`}
+      </div>
+      <div class="field-group">
+        <label>📋 Edital</label>
+        ${editalUrl
+          ? `<a href="${editalUrl}" target="_blank" class="file-link">📥 Baixar</a>`
+          : `<span class="file-link no-file">Não anexado</span>`}
+      </div>
+      ${uploadHtml}
+    </div>
+    ${isPendente ? `
+    <div class="card-footer">
+      <span class="msg" id="msg-${deal.id}"></span>
+      <button class="btn-enviar" id="btn-${deal.id}" onclick="enviarDemanda('${deal.id}')" disabled>
+        Enviar ↗
+      </button>
+    </div>` : ''}
+  `;
+
+  return card;
+}
+
+function showLoading(show) {
+  document.getElementById('loading-state').style.display = show ? 'block' : 'none';
+  if (show) {
+    document.getElementById('cards-container').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════
+// FILE SELECT
+// ═══════════════════════════════════════
+function onFileSelect(dealId, input) {
+  const file = input.files[0];
+  if (!file) return;
+  fileMap[dealId] = file;
+  const area = document.getElementById(`upload-${dealId}`);
+  const label = document.getElementById(`upload-label-${dealId}`);
+  area.classList.add('has-file');
+  label.textContent = `✅ ${file.name}`;
+  document.getElementById(`btn-${dealId}`).disabled = false;
+}
+
+// ═══════════════════════════════════════
+// ENVIAR DEMANDA
+// ═══════════════════════════════════════
+async function enviarDemanda(dealId) {
+  const btn = document.getElementById(`btn-${dealId}`);
+  const msg = document.getElementById(`msg-${dealId}`);
+  const file = fileMap[dealId];
+  const obs = document.getElementById(`obs-${dealId}`)?.value || '';
+  const u = USERS[currentUser];
+
+  if (!file) {
+    showToast('Selecione um arquivo antes de enviar.', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  msg.textContent = 'Fazendo upload...';
+
+  try {
+    // 1. Upload do arquivo
+    const fileUrl = await uploadFile(dealId, file);
+
+    // 2. Atualiza propriedades do deal
+    const propsToUpdate = {
+      [u.planilha_prop]: fileUrl,
+    };
+    if (obs.trim()) {
+      propsToUpdate[u.obs_prop] = obs.trim();
+    }
+
+    await apiCall(`/deals/${dealId}`, 'PATCH', { properties: propsToUpdate });
+
+    // 3. Verifica se pode avançar de etapa
+    msg.textContent = 'Verificando etapa...';
+    const deal = await apiCall(`/deals/${dealId}?properties=planilha_de_custos,planilha_de_custos__compras,tipo_de_op_compraproducao`, 'GET');
+    const tipo = deal.properties?.tipo_de_op_compraproducao || '';
+    const planProd = deal.properties?.planilha_de_custos;
+    const planComp = deal.properties?.planilha_de_custos__compras;
+
+    let podeAvancar = false;
+    if (tipo === 'Compra') podeAvancar = !!planComp;
+    else if (tipo === 'Produção') podeAvancar = !!planProd;
+    else if (tipo === 'Compra e Produção') podeAvancar = !!(planProd && planComp);
+
+    if (podeAvancar) {
+      await apiCall(`/deals/${dealId}`, 'PATCH', {
+        properties: { dealstage: STAGE_PRECIFICACAO }
+      });
+      msg.textContent = '✅ Avançado para Precificação!';
+    } else {
+      msg.textContent = '✅ Enviado. Aguardando outro lado.';
+    }
+
+    showToast('Demanda enviada com sucesso!', 'success');
+
+    // Atualiza lista após 1s
+    setTimeout(() => loadDeals(), 1200);
+
+  } catch (e) {
+    console.error(e);
+    btn.disabled = false;
+    btn.innerHTML = 'Enviar ↗';
+    msg.textContent = '';
+    showToast('Erro ao enviar. Tente novamente.', 'error');
+  }
+}
+
+// ═══════════════════════════════════════
+// UPLOAD DE ARQUIVO
+// ═══════════════════════════════════════
+async function uploadFile(dealId, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('dealId', dealId);
+  formData.append('folderPath', '/licitacao/planilhas');
+
+  const resp = await fetch(`${WORKER_URL}/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!resp.ok) throw new Error('Upload falhou');
+  const data = await resp.json();
+  return data.url;
+}
+
+// ═══════════════════════════════════════
+// API CALL (via Worker)
+// ═══════════════════════════════════════
+async function apiCall(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const resp = await fetch(`${WORKER_URL}/api${path}`, opts);
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`API error ${resp.status}: ${err}`);
+  }
+  return resp.json();
+}
+
+// ═══════════════════════════════════════
+// PERFIL
+// ═══════════════════════════════════════
+function openProfile() {
+  const saved = localStorage.getItem(`licit_email_${currentUser}`) || '';
+  document.getElementById('profile-email').value = saved;
+  document.getElementById('modal-profile').classList.add('open');
+}
+
+function closeProfile() {
+  document.getElementById('modal-profile').classList.remove('open');
+}
+
+function saveProfile() {
+  const email = document.getElementById('profile-email').value.trim();
+  localStorage.setItem(`licit_email_${currentUser}`, email);
+  closeProfile();
+  showToast('E-mail salvo com sucesso.', 'success');
+}
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show${type ? ' ' + type : ''}`;
+  setTimeout(() => t.className = 'toast', 3200);
+}
+</script>
+</body>
+</html>
