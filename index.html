@@ -503,8 +503,8 @@
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-box">
-    <div class="login-logo">CITEROL</div>
-    <div class="login-subtitle">Portal de Demandas — Licitação</div>
+    <div class="login-logo">Portal de Demandas</div>
+    <div class="login-subtitle">Licitação — Análise de Custos</div>
     <input type="text" id="login-user" placeholder="Usuário" autocomplete="username">
     <input type="password" id="login-pass" placeholder="Senha" autocomplete="current-password">
     <button onclick="doLogin()">Entrar</button>
@@ -515,7 +515,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <div class="header-logo">CITEROL <span>Portal de Demandas</span></div>
+    <div class="header-logo">Portal de Demandas <span>Licitação</span></div>
     <div class="header-right">
       <div class="user-badge">Olá, <strong id="header-user"></strong></div>
       <button class="btn-profile" onclick="openProfile()">⚙ Perfil</button>
@@ -531,11 +531,11 @@
       <button class="tab-btn active" onclick="switchTab('pendentes')" id="tab-pendentes">
         Pendentes <span class="tab-count zero" id="count-pendentes">0</span>
       </button>
-      <button class="tab-btn" onclick="switchTab('executadas')" id="tab-executadas">
-        Executadas <span class="tab-count zero" id="count-executadas">0</span>
-      </button>
       <button class="tab-btn" onclick="switchTab('reajuste')" id="tab-reajuste">
         Reajuste <span class="tab-count zero" id="count-reajuste">0</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('executadas')" id="tab-executadas">
+        Executadas <span class="tab-count zero" id="count-executadas">0</span>
       </button>
     </div>
 
