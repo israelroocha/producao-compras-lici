@@ -969,7 +969,7 @@ function buildCard(deal) {
     <div class="field-group">
       <label>📎 Planilha enviada</label>
       ${planilhaAtual
-        ? `<a href="${planilhaAtual}" target="_blank" class="file-link">📄 Ver arquivo</a>`
+        ? `<a href="${WORKER_URL}/signed-url?url=${encodeURIComponent(planilhaAtual)}" target="_blank" class="file-link">📄 Ver arquivo</a>`
         : `<span class="file-link no-file">Nenhum arquivo</span>`}
     </div>
     <div class="field-group">
@@ -1014,13 +1014,13 @@ function buildCard(deal) {
       <div class="field-group">
         <label>📄 Termo de Referência</label>
         ${termoUrl
-          ? `<a href="${termoUrl}" target="_blank" class="file-link">📥 Baixar</a>`
+          ? `<a href="${WORKER_URL}/signed-url?url=${encodeURIComponent(termoUrl)}" target="_blank" class="file-link">📥 Baixar</a>`
           : `<span class="file-link no-file">Não anexado</span>`}
       </div>
       <div class="field-group">
         <label>📋 Edital</label>
         ${editalUrl
-          ? `<a href="${editalUrl}" target="_blank" class="file-link">📥 Baixar</a>`
+          ? `<a href="${WORKER_URL}/signed-url?url=${encodeURIComponent(editalUrl)}" target="_blank" class="file-link">📥 Baixar</a>`
           : `<span class="file-link no-file">Não anexado</span>`}
       </div>
       ${uploadHtml}
