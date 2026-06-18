@@ -9,7 +9,7 @@
 <title>Portal de Demandas — Licitação</title>
 <script>
   // Cache-busting: força reload se versão do cache for diferente
-  const VERSION = '2.1.0';
+  const VERSION = '2.2.0';
   const cached = sessionStorage.getItem('portal_version');
   if (cached && cached !== VERSION) {
     sessionStorage.setItem('portal_version', VERSION);
@@ -1059,7 +1059,7 @@ function renderFileLinks(value, label) {
   ).join('');
 }
 
-
+function showLoading(show) {
   document.getElementById('loading-state').style.display = show ? 'block' : 'none';
   if (show) {
     document.getElementById('cards-container').style.display = 'none';
