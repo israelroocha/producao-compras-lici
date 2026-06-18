@@ -1013,15 +1013,15 @@ function buildCard(deal) {
     <div class="card-body">
       <div class="field-group">
         <label>📄 Termo de Referência</label>
-        ${termoUrl
-          ? `<a href="${WORKER_URL}/signed-url?url=${encodeURIComponent(termoUrl)}" target="_blank" class="file-link">📥 Baixar</a>`
-          : `<span class="file-link no-file">Não anexado</span>`}
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          ${renderFileLinks(termoUrl, 'Arquivo')}
+        </div>
       </div>
       <div class="field-group">
         <label>📋 Edital</label>
-        ${editalUrl
-          ? `<a href="${WORKER_URL}/signed-url?url=${encodeURIComponent(editalUrl)}" target="_blank" class="file-link">📥 Baixar</a>`
-          : `<span class="file-link no-file">Não anexado</span>`}
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          ${renderFileLinks(editalUrl, 'Arquivo')}
+        </div>
       </div>
       ${uploadHtml}
     </div>
@@ -1031,7 +1031,21 @@ function buildCard(deal) {
   return card;
 }
 
-function showLoading(show) {
+function renderFileLinks(value, label) {
+  if (!value || value.trim() === '') {
+    return `<span class="file-link no-file">Não anexado</span>`;
+  }
+  const ids = value.split(';').map(s => s.trim()).filter(Boolean);
+  if (ids.length === 1) {
+    return `<a href="${WORKER_URL}/signed-url?url=${encodeURIComponent(ids[0])}" target="_blank" class="file-link">📥 Baixar</a>`;
+  }
+  // Múltiplos arquivos
+  return ids.map((id, i) =>
+    `<a href="${WORKER_URL}/signed-url?url=${encodeURIComponent(id)}" target="_blank" class="file-link" style="margin-bottom:4px">📥 ${label} ${i + 1}</a>`
+  ).join('');
+}
+
+
   document.getElementById('loading-state').style.display = show ? 'block' : 'none';
   if (show) {
     document.getElementById('cards-container').style.display = 'none';
