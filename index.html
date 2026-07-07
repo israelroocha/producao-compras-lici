@@ -9,7 +9,7 @@
 <title>Portal de Demandas — Licitação</title>
 <script>
   // Cache-busting: força reload se versão do cache for diferente
-  const VERSION = '2.2.0';
+  const VERSION = '2.3.0';
   const cached = sessionStorage.getItem('portal_version');
   if (cached && cached !== VERSION) {
     sessionStorage.setItem('portal_version', VERSION);
@@ -694,6 +694,7 @@ async function loadDeals() {
       'observacao_da_analise_de_custo', 'observacao_da_analise_de_custo_da_compra',
       'termo_de_referencia', 'edital',
       'associatedcompanyid',
+      'informacao_para_producaocompra',
     ];
 
     // Busca deals em Preparação e custo (pendentes/reajuste)
@@ -1038,6 +1039,11 @@ function buildCard(deal) {
         </div>
       </div>
       ${uploadHtml}
+      ${props.informacao_para_producaocompra ? `
+      <div class="field-group" style="grid-column: 1 / -1;">
+        <label>ℹ️ Informação para Produção/Compra</label>
+        <div style="font-size:13px;color:var(--black);padding:10px 12px;background:var(--blue-bg);border-radius:8px;border-left:3px solid var(--blue);">${props.informacao_para_producaocompra}</div>
+      </div>` : ''}
     </div>
     ${footerHtml}
   `;
