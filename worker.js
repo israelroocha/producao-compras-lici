@@ -227,55 +227,62 @@ async function handleSignedUrl(request, env, origin) {
     return corsResponse(JSON.stringify({ error: 'url param required' }), 400, origin, env);
   }
 
-  // Verifica se é um fileId numérico ou uma URL completa
-  const isFileId = /^\d+$/.test(fileParam.trim());
-  let fileId = null;
-
-  if (isFileId) {
-    fileId = fileParam.trim();
-  } else {
-    // Tenta extrair fileId de uma URL hubspot
-    const match = fileParam.match(/\/files\/v3\/files\/(\d+)/);
-    if (match) fileId = match[1];
+  // ⚠ NUNCA fazer fetch da URL recebida com o token do HubSpot.
+  // A versão anterior, quando o parâmetro não era um fileId, fazia
+  // `fetch(fileParam, { Authorization: Bearer HUBSPOT_TOKEN })` — qualquer um
+  // passava a URL de um servidor próprio e recebia o token. Agora o Worker só
+  // fala com api.hubapi.com, e o que vem de fora serve só para achar o fileId.
+  const fileId = await fileIdDoParametro(fileParam.trim(), env);
+  if (!fileId) {
+    return corsResponse(JSON.stringify({ error: 'Arquivo não reconhecido' }), 400, origin, env);
   }
 
-  // Se temos fileId, gera signed URL
-  if (fileId) {
-    const signedResp = await fetch(`${HS_BASE}/files/v3/files/${fileId}/signed-url`, {
-      headers: { 'Authorization': `Bearer ${env.HUBSPOT_TOKEN}` },
-    });
-    if (signedResp.ok) {
-      const signed = await signedResp.json();
-      // Redireciona para a URL assinada
-      return Response.redirect(signed.url, 302);
-    }
-    return corsResponse(JSON.stringify({ error: 'Não foi possível gerar URL assinada' }), 404, origin, env);
-  }
-
-  // Caso contrário, tenta fetch autenticado da URL diretamente
-  const resp = await fetch(fileParam, {
+  const signedResp = await fetch(`${HS_BASE}/files/v3/files/${fileId}/signed-url`, {
     headers: { 'Authorization': `Bearer ${env.HUBSPOT_TOKEN}` },
-    redirect: 'follow',
   });
+  if (signedResp.ok) {
+    const signed = await signedResp.json();
+    // Redireciona para a URL assinada
+    return Response.redirect(signed.url, 302);
+  }
+  return corsResponse(JSON.stringify({ error: 'Não foi possível gerar URL assinada' }), 404, origin, env);
+}
 
-  if (!resp.ok) {
-    return corsResponse(JSON.stringify({ error: 'Arquivo não encontrado' }), 404, origin, env);
+// Aceita três formas, e só elas:
+//   1. fileId numérico — o que o portal grava desde out/2026;
+//   2. URL da API de arquivos (/files/v3/files/<id>);
+//   3. URL assinada ANTIGA do CDN de arquivos do portal 50832222
+//      (https://50832222.cdnp1.hubspotusercontent-na1.net/hubfs/50832222/licitacao/...).
+//      Era o que se gravava até jul/2026; a assinatura já venceu. O caminho do
+//      arquivo continua valendo: acha o fileId por ele e gera um link novo.
+async function fileIdDoParametro(param, env) {
+  if (/^\d+$/.test(param)) return param;
+
+  let u;
+  try { u = new URL(param); } catch { return null; }
+  if (u.protocol !== 'https:') return null;
+
+  if (u.hostname === 'api.hubapi.com') {
+    const m = u.pathname.match(/^\/files\/v3\/files\/(\d+)/);
+    return m ? m[1] : null;
   }
 
-  const contentType = resp.headers.get('content-type') || 'application/octet-stream';
-  const contentDisposition = resp.headers.get('content-disposition') || 'attachment';
-  const blob = await resp.arrayBuffer();
+  const cdnDoPortal = /^50832222\.[a-z0-9-]+\.hubspotusercontent-[a-z0-9]+\.net$/;
+  const prefixo = '/hubfs/50832222/';
+  if (cdnDoPortal.test(u.hostname) && u.pathname.startsWith(prefixo)) {
+    const caminho = '/' + decodeURIComponent(u.pathname.slice(prefixo.length));
+    if (caminho.includes('..')) return null;
+    const stat = await fetch(
+      `${HS_BASE}/files/v3/files/stat/${caminho.split('/').map(encodeURIComponent).join('/').replace(/^\//, '')}`,
+      { headers: { 'Authorization': `Bearer ${env.HUBSPOT_TOKEN}` } },
+    );
+    if (!stat.ok) return null;
+    const dados = await stat.json();
+    const id = dados.file?.id;
+    return id && /^\d+$/.test(String(id)) ? String(id) : null;
+  }
 
-  // Este caminho é aberto por <a href target="_blank"> (navegação), não por
-  // fetch — o CORS nem entra na conta. O cabeçalho vai só quando a origem é
-  // conhecida, pela mesma regra do resto.
-  const headers = {
-    'Content-Type': contentType,
-    'Content-Disposition': contentDisposition,
-  };
-  if (origemPermitida(origin, env)) headers['Access-Control-Allow-Origin'] = origin;
-
-  return new Response(blob, { status: 200, headers });
+  return null;
 }
 
 // ═══════════════════════════════════════
