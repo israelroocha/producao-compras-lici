@@ -1,0 +1,12 @@
+{
+  // Worker do Portal de Demandas — Licitação.
+  // Publicar: npx wrangler@4 deploy  (a partir desta pasta)
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "compras-producao-licitacao",
+  "main": "worker.js",
+  "compatibility_date": "2026-06-10",
+  // HUBSPOT_TOKEN e RESEND_KEY são secrets e ALLOWED_ORIGIN é variável, todos
+  // cadastrados no painel da Cloudflare. NÃO declare "vars" aqui: o deploy
+  // apagaria o que está no painel. keep_vars preserva as variáveis de lá.
+  "keep_vars": true
+}
